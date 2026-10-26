@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using BTTH2.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using THanh1.Models;
 
@@ -36,47 +37,65 @@ namespace THanh1.Controllers
             return View(listStudents);
         }
 
-        [HttpGet("Add", Name = "student_add")]
+        // Thêm phương thức GET để mở giao diện Create (tránh lỗi khi bấm vào thêm mới)
+        [HttpGet("Create")]
         public IActionResult Create()
         {
             ViewBag.AllGenders = Enum.GetValues(typeof(Gender)).Cast<Gender>().ToList();
             ViewBag.AllBranches = new List<SelectListItem>()
             {
-                new SelectListItem { Text = "IT", Value = "1" },
-                new SelectListItem { Text = "BE", Value = "2" },
-                new SelectListItem { Text = "CE", Value = "3" },
-                new SelectListItem { Text = "EE", Value = "4" }
+                new SelectListItem { Text = "IT", Value = "IT" },
+                new SelectListItem { Text = "BE", Value = "BE" },
+                new SelectListItem { Text = "CE", Value = "CE" },
+                new SelectListItem { Text = "EE", Value = "EE" }
             };
             return View();
         }
 
+        // Giữ lại hàm POST xử lý upload file khớp với action="/Admin/Student/Add" trong form của bạn
         [HttpPost("Add")]
         public async Task<IActionResult> Create(Student s)
         {
-            // Xử lý upload ảnh nếu người dùng có chọn file
-            if (s.AvatarFile != null && s.AvatarFile.Length > 0)
+            if (ModelState.IsValid)
             {
-                string uploadDir = Path.Combine(_env.WebRootPath, "images");
-                if (!Directory.Exists(uploadDir))
+                // Xử lý upload ảnh nếu người dùng có chọn file
+                if (s.AvatarFile != null && s.AvatarFile.Length > 0)
                 {
-                    Directory.CreateDirectory(uploadDir);
+                    string uploadDir = Path.Combine(_env.WebRootPath, "images");
+                    if (!Directory.Exists(uploadDir))
+                    {
+                        Directory.CreateDirectory(uploadDir);
+                    }
+
+                    string fileName = Guid.NewGuid().ToString() + Path.GetExtension(s.AvatarFile.FileName);
+                    string filePath = Path.Combine(uploadDir, fileName);
+
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await s.AvatarFile.CopyToAsync(fileStream);
+                    }
+
+                    s.AvatarUrl = "/images/" + fileName;
                 }
 
-                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(s.AvatarFile.FileName);
-                string filePath = Path.Combine(uploadDir, fileName);
+                s.Id = listStudents.Any() ? listStudents.Last().Id + 1 : 101;
+                listStudents.Add(s);
 
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await s.AvatarFile.CopyToAsync(fileStream);
-                }
-
-                s.AvatarUrl = "/images/" + fileName;
+                return View("Index", listStudents);
             }
 
-            s.Id = listStudents.Any() ? listStudents.Last().Id + 1 : 101;
-            listStudents.Add(s);
+            ViewBag.AllGenders = Enum.GetValues(typeof(Gender)).Cast<Gender>().ToList();
+            ViewBag.AllBranches = new List<SelectListItem>()
+            {
+                new SelectListItem { Text = "IT", Value = "IT" },
+                new SelectListItem { Text = "BE", Value = "BE" },
+                new SelectListItem { Text = "CE", Value = "CE" },
+                new SelectListItem { Text = "EE", Value = "EE" }
+            };
 
-            return View("Index", listStudents);
+            return View(s);
         }
+
     }
+
 }
